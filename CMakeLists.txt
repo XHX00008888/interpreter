@@ -3,4 +3,4 @@ project(interpreter)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(interpreter part_3.cpp)
+add_executable(interpreter tmp.cpp)
