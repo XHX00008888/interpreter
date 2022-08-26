@@ -66,21 +66,28 @@ Interpreter::Interpreter(std::string &text) : _text{text}, _pos{0},
                                               _current_token{TOKENTYPE::ENDOFLINE, 0} {}
 
 long Interpreter::expression() {
+
     _current_token = get_next_token();
     Token left = _current_token;
+    long result = left.value;
     eat(TOKENTYPE::INTEGER);
-    Token op = _current_token;
-    if(op.type == TOKENTYPE::MINUS) {
-        eat(TOKENTYPE::MINUS);
-        return minus(left.value);
-    } else if(op.type == TOKENTYPE::PLUS) {
-        eat(TOKENTYPE::PLUS);
-        return plus(left.value);
+
+    while(_current_token.type != TOKENTYPE::ENDOFLINE) {
+        if(_current_token.type == TOKENTYPE::MINUS) {
+            eat(TOKENTYPE::MINUS);
+            result = minus(result);
+        } else if(_current_token.type == TOKENTYPE::PLUS) {
+            eat(TOKENTYPE::PLUS);
+            result = plus(result);
+        } else {
+            ostringstream out;
+            out << "Error: can't resolve " << _current_token;
+            throw invalid_argument(out.str());
+        }
     }
 
-    ostringstream out;
-    out << "Error: can't resolve " << op;
-    throw invalid_argument(out.str());
+    return result;
+
 }
 
 void Interpreter::eat(TOKENTYPE token_type) {
@@ -168,7 +175,6 @@ int main() {
     }
     return EXIT_SUCCESS;
 }
-
 
 
 
