@@ -1,14 +1,27 @@
-#include<iostream>
-#include<sstream>
+#include <iostream>
+#include <string>
 using namespace std;
+
+// Token types
 enum class TOKENTYPE {
-    ENDOFLINE = 0,
+    ENDOFLINE = 0, // EOF can't be used as it is already defined in std
     INTEGER,
-    MINUS,
-    PLUS
+    MUL,
+    DIV
 };
 
-ostream &operator<<(ostream &out, const TOKENTYPE &t) {
+class Interpreter;
+
+class Token {
+public:
+    Token(TOKENTYPE t, long v):_type{t},_value{v}{};
+
+    TOKENTYPE _type;
+    long _value;
+    friend ostream& operator <<(ostream& out, Token token);
+};
+
+ostream & operator<<(ostream& out, TOKENTYPE t){
     string repr;
     switch (t) {
         case TOKENTYPE::ENDOFLINE:
@@ -17,172 +30,138 @@ ostream &operator<<(ostream &out, const TOKENTYPE &t) {
         case TOKENTYPE::INTEGER:
             repr = "INTEGER";
             break;
-        case TOKENTYPE::MINUS:
-            repr = "MINUS";
+        case TOKENTYPE::MUL:
+            repr = "DIV";
             break;
-        case TOKENTYPE::PLUS:
-            repr = "PLUS";
+        case TOKENTYPE::DIV:
+            repr = "MUL";
             break;
     }
     out << repr;
     return out;
 }
 
-struct Token {
-    Token(TOKENTYPE t, long v) : type{t}, value{v} {}
-
-    TOKENTYPE type;
-    long value;
-
-    friend ostream &operator<<(ostream &out, const Token &t);
-};
-
-ostream &operator<<(ostream &out, Token &t) {
-    out << "Token(" << t.type << ", " << t.value << ")";
+ostream& operator<<(ostream& out, Token token){
+    out << "Token(" << token._type << ", " << token._value << ")";
     return out;
 }
 
-class Interpreter {
-public:
-    Interpreter(string &text);
-
-    long expression();
-
+class Lexer {
 private:
-    string &_text;
-    size_t _pos;
-    Token _current_token;
+    string _text;
+    long _pos;
+    char _current_char;
+public:
+    Lexer(string& text):_text{text}, _pos{0}, _current_char{_text[_pos]}{};
+    void error(){
+        string message = "Invalid character";
+        throw message.c_str();
+    }
 
-    void eat(TOKENTYPE token_type);
+    void advance(){
+        ++_pos;
+        if(_pos > _text.length() - 1) {
+            _current_char = '\0';
+        }else{
+            _current_char = _text[_pos];
+        }
+    }
 
-    Token get_next_token();
+    void skip_whitespace(){
+        while (_current_char != '\0' && isspace(_current_char)){
+            advance();
+        }
+    }
 
-    long minus(long left_value);
+    long integer(){
+        long result = 0;
+        while (_current_char != '\0' && isdigit(_current_char)){
+            result = result * 10 + (_current_char - '0');
+            advance();
+        }
+        return result;
+    }
 
-    long plus(long left_value);
+    inline Token get_next_token();
 };
 
-Interpreter::Interpreter(std::string &text) : _text{text}, _pos{0},
-                                              _current_token{TOKENTYPE::ENDOFLINE, 0} {}
-
-long Interpreter::expression() {
-
-    _current_token = get_next_token();
-    Token left = _current_token;
-    long result = left.value;
-    eat(TOKENTYPE::INTEGER);
-
-    while(_current_token.type != TOKENTYPE::ENDOFLINE) {
-        if(_current_token.type == TOKENTYPE::MINUS) {
-            eat(TOKENTYPE::MINUS);
-            result = minus(result);
-        } else if(_current_token.type == TOKENTYPE::PLUS) {
-            eat(TOKENTYPE::PLUS);
-            result = plus(result);
-        } else {
-            ostringstream out;
-            out << "Error: can't resolve " << _current_token;
-            throw invalid_argument(out.str());
+inline Token Lexer::get_next_token() {
+    while(_current_char != '\0'){
+        if(isspace(_current_char)){
+            skip_whitespace();
+            continue;
         }
-    }
-
-    return result;
-
-}
-
-void Interpreter::eat(TOKENTYPE token_type) {
-    if(_current_token.type== token_type) {
-        _current_token = get_next_token();
-    } else {
-        ostringstream  out;
-        out << "Error parsing input. Wanted: " << token_type;
-        throw invalid_argument(out.str());
-    }
-}
-
-Token Interpreter::get_next_token() {
-    while (_pos < _text.length() && isspace(_text[_pos])) {
-        _pos++;
-    }
-
-    if(_pos >= _text.length()) {
-        Token token(TOKENTYPE::ENDOFLINE, 0);
-        cerr << token << endl;
-        return token;
-    }
-
-    char current_char = _text[_pos];
-
-    if(isdigit(current_char)) {
-        long total = 0;
-        while (isdigit(_text[_pos])) {
-            total *= 10;
-            total += (_text[_pos] - '0');
-            _pos++;
+        if(isdigit(_current_char)){
+            return Token(TOKENTYPE::INTEGER, integer());
+        }
+        if(_current_char == '*'){
+            advance();
+            return Token(TOKENTYPE::MUL, '*');
+        }
+        if(_current_char == '/') {
+            advance();
+            return Token(TOKENTYPE::DIV, '/');
         }
 
-        Token token(TOKENTYPE::INTEGER, total);
-        cerr << token << endl;
-        return token;
+        error();
+        return Token(TOKENTYPE::ENDOFLINE, 0);
     }
-
-    if(current_char == '+') {
-        Token token(TOKENTYPE::PLUS, '+');
-        cerr << token << endl;
-        _pos++;
-        return token;
-    }
-
-    if(current_char == '-') {
-        Token token(TOKENTYPE::MINUS, '-');
-        cerr << token << endl;
-        _pos++;
-        return token;
-    }
-
-    ostringstream out;
-    out << "Error parsing input. Got: " << current_char;
-    throw invalid_argument(out.str());
 }
 
-long Interpreter::minus(long left_value) {
-    Token right = _current_token;
-    eat(TOKENTYPE::INTEGER);
-    return left_value - right.value;
-}
 
-long Interpreter::plus(long left_value) {
-    Token right = _current_token;
-    eat(TOKENTYPE::INTEGER);
-    return left_value + right.value;
-}
+class Interpreter{
+private:
+    Lexer _lexer;
+    Token _current_token = _lexer.get_next_token();
+public:
+    Interpreter(Lexer& lexer): _lexer{lexer}{};
+    void error(){
+        string message = "Invalid syntax";
+        throw message.c_str();
+    }
 
-int main() {
+    void eat(TOKENTYPE tokentype){
+        if(_current_token._type == tokentype){
+            _current_token = _lexer.get_next_token();
+        } else{
+            error();
+        }
+    }
+    long factor(){
+        long value = _current_token._value;
+        eat(TOKENTYPE::INTEGER);
+        return value;
+    }
+
+    long expr(){
+        long result = factor();
+
+        while(_current_token._type == TOKENTYPE::MUL
+              || _current_token._type == TOKENTYPE::DIV){
+            Token token = _current_token;
+            if(token._type == TOKENTYPE::MUL){
+                eat(TOKENTYPE::MUL);
+                result *= factor();
+            }else if(token._type == TOKENTYPE::DIV){
+                eat(TOKENTYPE::DIV);
+                result /= factor();
+            }
+        }
+        return result;
+    }
+};
+
+int main(){
     string text;
-    while(cin) {
+    while (cin){
         cout << "calc> ";
         getline(cin, text);
-
-        try {
-            Interpreter interpreter(text);
-            long result = interpreter.expression();
-            cout << result << endl;
-        }
-        catch (const char* error){
-            cerr << error << endl;
-            break;
-        }
+        Lexer lexer(text);
+        Interpreter interpreter(lexer);
+        long result = interpreter.expr();
+        cout << result << endl;
     }
     return EXIT_SUCCESS;
 }
-
-
-
-
-
-
-
-
-
 
 
