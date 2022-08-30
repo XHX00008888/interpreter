@@ -7,7 +7,9 @@ enum class TOKENTYPE {
     ENDOFLINE = 0, // EOF can't be used as it is already defined in std
     INTEGER,
     MUL,
-    DIV
+    DIV,
+    PLUS,
+    MINUS
 };
 
 class Interpreter;
@@ -35,6 +37,12 @@ ostream & operator<<(ostream& out, TOKENTYPE t){
             break;
         case TOKENTYPE::DIV:
             repr = "MUL";
+            break;
+        case TOKENTYPE::PLUS:
+            repr = "PLUS";
+            break;
+        case TOKENTYPE::MINUS:
+            repr = "MINUS";
             break;
     }
     out << repr;
@@ -102,6 +110,14 @@ inline Token Lexer::get_next_token() {
             advance();
             return Token(TOKENTYPE::DIV, '/');
         }
+        if(_current_char == '+') {
+            advance();
+            return Token(TOKENTYPE::PLUS, '+');
+        }
+        if(_current_char == '-') {
+            advance();
+            return Token(TOKENTYPE::MINUS, '-');
+        }
 
         error();
         return Token(TOKENTYPE::ENDOFLINE, 0);
@@ -133,11 +149,11 @@ public:
         return value;
     }
 
-    long expr(){
+    long term(){
         long result = factor();
 
         while(_current_token._type == TOKENTYPE::MUL
-        || _current_token._type == TOKENTYPE::DIV){
+              || _current_token._type == TOKENTYPE::DIV){
             Token token = _current_token;
             if(token._type == TOKENTYPE::MUL){
                 eat(TOKENTYPE::MUL);
@@ -145,6 +161,23 @@ public:
             }else if(token._type == TOKENTYPE::DIV){
                 eat(TOKENTYPE::DIV);
                 result /= factor();
+            }
+        }
+        return result;
+    }
+
+    long expr(){
+        long result = term();
+
+        while(_current_token._type == TOKENTYPE::PLUS
+              || _current_token._type == TOKENTYPE::MINUS){
+            Token token = _current_token;
+            if(token._type == TOKENTYPE::PLUS){
+                eat(TOKENTYPE::PLUS);
+                result += term();
+            }else if(token._type == TOKENTYPE::MINUS){
+                eat(TOKENTYPE::MINUS);
+                result -= term();
             }
         }
         return result;
