@@ -9,7 +9,9 @@ enum class TOKENTYPE {
     MUL,
     DIV,
     PLUS,
-    MINUS
+    MINUS,
+    LEFTPARENTHESIS,
+    RIGHTPARENTHESIS
 };
 
 class Interpreter;
@@ -43,6 +45,12 @@ ostream & operator<<(ostream& out, TOKENTYPE t){
             break;
         case TOKENTYPE::MINUS:
             repr = "MINUS";
+            break;
+        case TOKENTYPE::LEFTPARENTHESIS:
+            repr = "LEFTPARENTHESIS";
+            break;
+        case TOKENTYPE::RIGHTPARENTHESIS:
+            repr = "RIGHTPARENTHESIS";
             break;
     }
     out << repr;
@@ -118,6 +126,14 @@ inline Token Lexer::get_next_token() {
             advance();
             return Token(TOKENTYPE::MINUS, '-');
         }
+        if(_current_char == '(') {
+            advance();
+            return Token(TOKENTYPE::LEFTPARENTHESIS, '(');
+        }
+        if(_current_char == ')'){
+            advance();
+            return Token(TOKENTYPE::RIGHTPARENTHESIS, ')');
+        }
 
         error();
         return Token(TOKENTYPE::ENDOFLINE, 0);
@@ -144,9 +160,16 @@ public:
         }
     }
     long factor(){
-        long value = _current_token._value;
-        eat(TOKENTYPE::INTEGER);
-        return value;
+        long result = 0;
+        if(_current_token._type == TOKENTYPE::INTEGER) {
+            result = _current_token._value;
+            eat(TOKENTYPE::INTEGER);
+        }else if(_current_token._type == TOKENTYPE::LEFTPARENTHESIS){
+            eat(TOKENTYPE::LEFTPARENTHESIS);
+            result = expr();
+            eat(TOKENTYPE::RIGHTPARENTHESIS);
+        }
+        return result;
     }
 
     long term(){
